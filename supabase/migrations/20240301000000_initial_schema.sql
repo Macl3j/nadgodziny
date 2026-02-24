@@ -140,7 +140,10 @@ INSERT INTO public.users (id, email, full_name, role)
 VALUES (
         NEW.id,
         NEW.email,
-        NEW.raw_user_meta_data->>'full_name',
+        COALESCE(
+            NEW.raw_user_meta_data->>'full_name',
+            'Bez nazwiska'
+        ),
         'employee'
     );
 INSERT INTO public.overtime_balance (user_id, balance_hours)
