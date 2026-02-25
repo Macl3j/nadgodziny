@@ -25,6 +25,21 @@ export async function submitOvertimeRequest(formData: FormData) {
     const hours = parseFloat(formData.get('hours') as string)
     const requestDate = formData.get('date') as string
 
+    if (hours < -8) {
+        throw new Error('Nie możesz odebrać więcej niż 8 godzin w jednym dniu.')
+    }
+
+    // Check if request for this date already exists
+    const { data: existingRequests } = await supabase
+        .from('overtime_requests')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('request_date', requestDate)
+
+    if (existingRequests && existingRequests.length > 0) {
+        throw new Error('Złożyłeś już wniosek na ten dzień.')
+    }
+
     const { error } = await supabase.from('overtime_requests').insert({
         user_id: user.id,
         manager_id: manager.id,

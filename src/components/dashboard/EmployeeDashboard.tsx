@@ -56,9 +56,13 @@ export default function EmployeeDashboard({ user }: Props) {
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         const formData = new FormData(e.currentTarget)
-        await submitOvertimeRequest(formData)
-        setOpen(false)
-        fetchData()
+        try {
+            await submitOvertimeRequest(formData)
+            setOpen(false)
+            fetchData()
+        } catch (error: any) {
+            alert(error.message)
+        }
     }
 
     return (
