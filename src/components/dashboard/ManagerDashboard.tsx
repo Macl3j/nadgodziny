@@ -17,12 +17,13 @@ export default function ManagerDashboard({ user }: Props) {
     const [requests, setRequests] = useState<any[]>([])
     const [team, setTeam] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const [debugInfo, setDebugInfo] = useState<any>(null)
 
     const fetchData = async () => {
         setLoading(true)
 
         // Fetch team balances
-        const { data: teamData } = await supabase
+        const { data: teamData, error: teamError } = await supabase
             .from('users')
             .select(`
         id, 
@@ -35,15 +36,16 @@ export default function ManagerDashboard({ user }: Props) {
         if (teamData) setTeam(teamData)
 
         // Fetch team pending requests
-        const { data: reqData } = await supabase
+        const { data: reqData, error: reqError } = await supabase
             .from('overtime_requests')
-            .select('*, users!inner(full_name)')
+            .select('*, users!overtime_requests_user_id_fkey!inner(full_name)')
             .eq('manager_id', user.id)
             .eq('status', 'pending')
             .order('created_at', { ascending: false })
 
         if (reqData) setRequests(reqData)
 
+        setDebugInfo({ teamError, reqError })
         setLoading(false)
     }
 
@@ -87,6 +89,14 @@ export default function ManagerDashboard({ user }: Props) {
                     </CardContent>
                 </Card>
             </div>
+
+            {debugInfo && (debugInfo.teamError || debugInfo.reqError) && (
+                <div className="p-4 bg-red-50 text-red-900 border border-red-200 rounded-md text-sm font-mono overflow-auto">
+                    <strong>Błędy zapytania bazy danych:</strong><br />
+                    Zarządzanie: {JSON.stringify(debugInfo.teamError)}<br />
+                    Wnioski: {JSON.stringify(debugInfo.reqError)}
+                </div>
+            )}
 
             <div className="grid gap-6 md:grid-cols-2">
                 <Card>
