@@ -23,32 +23,65 @@ export async function submitOvertimeRequest(formData: FormData) {
     }
 
     const hours = parseFloat(formData.get('hours') as string)
-    const requestDate = formData.get('date') as string
+    const dateFrom = formData.get('date_from') as string
+    const dateTo = formData.get('date_to') as string
 
-    if (hours < -8) {
-        throw new Error('Nie możesz odebrać więcej niż 8 godzin w jednym dniu.')
+    if (!dateFrom || !dateTo) {
+        throw new Error('Należy podać datę początkową i końcową.')
     }
 
-    // Check if request for this date already exists
+    const start = new Date(dateFrom)
+    const end = new Date(dateTo)
+
+    if (end < start) {
+        throw new Error('Data końcowa nie może być wcześniejsza niż data początkowa.')
+    }
+
+    let datesToInsert: string[] = []
+    let currentDate = new Date(start)
+
+    while (currentDate <= end) {
+        const day = currentDate.getDay()
+        // 0 = Sunday, 6 = Saturday
+        if (day !== 0 && day !== 6) {
+            datesToInsert.push(currentDate.toISOString().split('T')[0])
+        }
+        currentDate.setDate(currentDate.getDate() + 1)
+    }
+
+    if (datesToInsert.length === 0) {
+        throw new Error('Wybrany zakres nie obejmuje dni roboczych.')
+    }
+
+    const hoursPerDay = hours / datesToInsert.length
+
+    if (hoursPerDay < -8) {
+        throw new Error(`Nie możesz odebrać więcej niż 8 godzin średnio na jeden dzień roboczy. (Wybrano ${datesToInsert.length} dni, wychodzi ${hoursPerDay.toFixed(1)}h na dzień)`)
+    }
+
+    // Check if request for any of these dates already exists
     const { data: existingRequests } = await supabase
         .from('overtime_requests')
-        .select('id')
+        .select('request_date')
         .eq('user_id', user.id)
-        .eq('request_date', requestDate)
+        .in('request_date', datesToInsert)
 
     if (existingRequests && existingRequests.length > 0) {
-        throw new Error('Złożyłeś już wniosek na ten dzień.')
+        const duplicateDates = existingRequests.map(r => r.request_date).join(', ')
+        throw new Error(`Złożyłeś już wniosek na niektóre z tych dni: ${duplicateDates}`)
     }
 
-    const { error } = await supabase.from('overtime_requests').insert({
+    const inserts = datesToInsert.map(date => ({
         user_id: user.id,
         manager_id: manager.id,
-        hours: hours,
-        request_date: requestDate,
+        hours: hoursPerDay,
+        request_date: date,
         compensation_mode: '1:1', // employee requests are always 1:1
         is_manager_initiated: false,
         status: 'pending'
-    })
+    }))
+
+    const { error } = await supabase.from('overtime_requests').insert(inserts)
 
     if (error) {
         console.error('Błąd zapisu wniosku', error)

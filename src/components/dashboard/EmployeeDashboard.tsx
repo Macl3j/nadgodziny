@@ -113,9 +113,15 @@ export default function EmployeeDashboard({ user }: Props) {
                                         <Label>Liczba godzin (odbiór = wpisz ujemną wartość, np. -8)</Label>
                                         <Input type="number" step="0.5" name="hours" required placeholder="-8" />
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label>Data (dzień, w którym wykorzystasz wolne)</Label>
-                                        <Input type="date" name="date" required />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label>Data od</Label>
+                                            <Input type="date" name="date_from" required />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Data do (nawet ten sam dzień)</Label>
+                                            <Input type="date" name="date_to" required />
+                                        </div>
                                     </div>
                                 </div>
                                 <DialogFooter>
