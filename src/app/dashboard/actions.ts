@@ -68,11 +68,33 @@ export async function submitForcedOvertime(formData: FormData) {
         throw new Error('Błąd zapisu')
     }
 
+    const { data: balanceData } = await supabase
+        .from('overtime_balance')
+        .select('balance_hours')
+        .eq('user_id', employeeId)
+        .single()
+
+    if (balanceData) {
+        const addedHours = hours * 1.5
+        await supabase
+            .from('overtime_balance')
+            .update({ balance_hours: balanceData.balance_hours + addedHours })
+            .eq('user_id', employeeId)
+    }
+
     revalidatePath('/dashboard')
 }
 
 export async function resolveRequest(requestId: string, approve: boolean) {
     const supabase = await createClient()
+
+    const { data: request } = await supabase
+        .from('overtime_requests')
+        .select('*')
+        .eq('id', requestId)
+        .single()
+
+    if (!request) throw new Error('Nie znaleziono wniosku')
 
     const { error } = await supabase
         .from('overtime_requests')
@@ -81,6 +103,21 @@ export async function resolveRequest(requestId: string, approve: boolean) {
 
     if (error) {
         throw new Error('Błąd rozpatrywania wniosku')
+    }
+
+    if (approve) {
+        const { data: balanceData } = await supabase
+            .from('overtime_balance')
+            .select('balance_hours')
+            .eq('user_id', request.user_id)
+            .single()
+
+        if (balanceData) {
+            await supabase
+                .from('overtime_balance')
+                .update({ balance_hours: balanceData.balance_hours + request.hours })
+                .eq('user_id', request.user_id)
+        }
     }
 
     revalidatePath('/dashboard')
